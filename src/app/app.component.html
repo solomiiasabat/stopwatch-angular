@@ -1,11 +1,16 @@
 <div class="container">
-  <p>{{ time }}</p>
-  <div class="buttons-section">
-    <button (click)="toggle()" class="btn">
-      {{ isRunning ? "Stop" : "Start" }}
-    </button>
-    <button (click)="waitClick()" class="btn">Wait</button>
-    <button (click)="reset()" class="btn">Reset</button>
-  </div>
-  <p>Fancier design in coming🥵</p>
+  <mat-card class="card">
+    <mat-card-content>
+      <p class="stopwatch-time">{{ time }}</p>
+    </mat-card-content>
+    <mat-card-actions class="buttons-section">
+      <button (click)="toggle()" mat-fab color="primary" class="btn">
+        {{ isRunning ? "Stop" : "Start" }}
+      </button>
+      <button (click)="waitClick()" mat-fab color="link" class="btn">
+        Wait
+      </button>
+      <button (click)="reset()" mat-fab color="warn" class="btn">Reset</button>
+    </mat-card-actions>
+  </mat-card>
 </div>
