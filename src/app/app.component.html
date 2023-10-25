@@ -1,11 +1,13 @@
 <div class="container">
   <mat-card class="card">
     <mat-card-content>
-      <p class="stopwatch-time">{{ time }}</p>
+      <p class="stopwatch-time">
+        {{ elapsedSeconds * 1000 | date : "HH:mm:ss" : "UTC" }}
+      </p>
     </mat-card-content>
     <mat-card-actions class="buttons-section">
       <button (click)="toggle()" mat-fab color="primary" class="btn">
-        {{ isRunning ? "Stop" : "Start" }}
+        {{ (runningState$ | async) ? "Stop" : "Start" }}
       </button>
       <button (click)="waitClick()" mat-fab color="link" class="btn">
         Wait

@@ -1,42 +1,58 @@
-/**
- * AppComponent: A stopwatch component that provides basic time tracking and control functionalities.
- */
-import { Component, OnDestroy } from '@angular/core';
-import { DatePipe } from '@angular/common';
-import { interval, Subject } from 'rxjs';
-import { debounceTime, buffer, filter, takeUntil } from 'rxjs/operators';
+import { Component, OnDestroy, OnInit } from '@angular/core';
+import { interval, Subject, BehaviorSubject } from 'rxjs';
+import {
+  debounceTime,
+  buffer,
+  filter,
+  takeUntil,
+  switchMap,
+} from 'rxjs/operators';
 
+/**
+ * AppComponent: Provides a basic stopwatch functionality with start, stop, wait, and reset capabilities.
+ */
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css'],
 })
-export class AppComponent implements OnDestroy {
-  /** Indicates the running state of the stopwatch. */
-  isRunning = false;
-
-  /** Represents the total elapsed time in seconds since the stopwatch started. */
+export class AppComponent implements OnInit, OnDestroy {
+  /** Stores the total elapsed time in seconds. */
   elapsedSeconds = 0;
 
-  /** Displays the elapsed time in the "HH:mm:ss" format. */
-  time = '00:00:00';
-
-  /** Subject to handle the unsubscription from observables. */
+  /** Subject used to trigger the unsubscription of all observables upon component destruction. */
   private unsubscribe$ = new Subject<void>();
 
-  /** Subject to handle the "Wait" button clicks. */
+  /** Subject for handling "Wait" button click events. */
   private waitClick$ = new Subject<void>();
 
+  /** BehaviorSubject for maintaining and observing the running state of the stopwatch. */
+  runningState$ = new BehaviorSubject<boolean>(false);
+
+  constructor() {}
+
   /**
-   * Sets up the stopwatch component and initializes wait handling logic.
-   * @param datePipe - Used for transforming elapsed seconds into a readable time format.
+   * OnInit lifecycle hook.
+   * Sets up the main stopwatch functionality and wait button handler.
+   *
+   * Switches between counting interval and an empty array based on running state.
+   * Unsubscribes from the timer when the component is destroyed or explicitly unsubscribed.
+   * Increments the elapsed seconds every second.
    */
-  constructor(private datePipe: DatePipe) {
+  ngOnInit() {
     this.setupWaitHandler();
+    this.runningState$
+      .pipe(
+        switchMap((isRunning) => (isRunning ? interval(1000) : [])),
+        takeUntil(this.unsubscribe$)
+      )
+      .subscribe(() => {
+        this.elapsedSeconds++;
+      });
   }
 
   /**
-   * Completes the unsubscription subject to perform cleanup.
+   * Cleans up by unsubscribing from all observables to avoid memory leaks.
    */
   ngOnDestroy(): void {
     this.unsubscribe$.next();
@@ -44,59 +60,42 @@ export class AppComponent implements OnDestroy {
   }
 
   /**
-   * Toggles the running state of the stopwatch. Starts or stops the time tracking.
+   * Toggles the stopwatch's running state between started and stopped.
    */
   toggle(): void {
-    if (this.isRunning) {
-      this.isRunning = false;
-      this.unsubscribe$.next();
-    } else {
-      this.isRunning = true;
-      interval(1000)
-        .pipe(takeUntil(this.unsubscribe$))
-        .subscribe(() => {
-          this.elapsedSeconds++;
-          this.time = this.datePipe.transform(
-            this.elapsedSeconds * 1000,
-            'HH:mm:ss',
-            'UTC'
-          )!;
-        });
-    }
+    this.runningState$.next(!this.runningState$.value);
   }
 
   /**
-   * Handles the event when the "Wait" button is clicked.
+   * Emits a value each time the "Wait" button is clicked.
    */
   waitClick(): void {
     this.waitClick$.next();
   }
 
   /**
-   * Resets the stopwatch, setting the elapsed time back to zero.
+   * Resets the stopwatch, setting elapsed time back to zero.
    */
   reset(): void {
-    if (this.isRunning) {
-      this.toggle();
-    }
+    this.runningState$.next(false);
     this.elapsedSeconds = 0;
-    this.time = '00:00:00';
   }
 
   /**
-   * Configures the behavior for the "Wait" button double-click within a 300ms window.
-   * Pauses the stopwatch if conditions are met.
+   * Sets up handling for double-click events on the "Wait" button.
+   * Collects clicks and emits them as an array.
+   * Filters them for double-clicks where the stopwatch is running.
+   * Pauses the stopwatch if double-clicked within a 300ms window.
+   * Toggles the running state if a double-click is detected.
    */
   private setupWaitHandler(): void {
     this.waitClick$
       .pipe(
         buffer(this.waitClick$.pipe(debounceTime(300))),
-        filter((clicks) => clicks.length >= 2)
+        filter((clicks) => clicks.length >= 2 && this.runningState$.value)
       )
       .subscribe(() => {
-        if (this.isRunning) {
-          this.toggle();
-        }
+        this.toggle();
       });
   }
 }
